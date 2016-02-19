@@ -92,7 +92,7 @@ void		handle_type_flags(char **format, t_fhandler *handler)
 	int		inc;
 
 	inc = 0;
-	while (**format != 's' && **format != 'd')
+	while (**format != 's' && **format != 'd' && **format != 'i')
 	{
 		if (**format == 'h' && !others_type_flags(handler, 0) && inc < 2)
 			handler->type_flags[TYPE_H] += 1;
@@ -138,7 +138,7 @@ void		handle_option(char **format, t_fhandler *handler, va_list *ap)
 
 	if (**format == 's')
 		ft_putstr(va_arg(*ap, char *));
-	else if (**format == 'd')
+	else if (**format == 'd' || **format == 'i')
 	{
 		if (handler->type_flags[TYPE_L] == 1)
 			tmp = ft_ltoa(va_arg(*ap, long int));
@@ -146,6 +146,17 @@ void		handle_option(char **format, t_fhandler *handler, va_list *ap)
 			tmp = ft_lltoa(va_arg(*ap, long long int));
 		else
 			tmp = ft_itoa(va_arg(*ap, int));
+
+		if (*tmp != '-' && handler->format_flags[FORMAT_PLUS])
+		{
+			handler->field -= 1;
+			ft_putchar('+');
+		}
+		else if (*tmp != '-' && handler->format_flags[FORMAT_SPACE])
+		{
+			handler->field -= 1;
+			ft_putchar(' ');
+		}
 
 		handler->precision -= ft_strlen(tmp);
 		if (handler->precision > 0)
@@ -155,10 +166,14 @@ void		handle_option(char **format, t_fhandler *handler, va_list *ap)
 		if (!handler->format_flags[FORMAT_MINUS])
 		{
 			if (handler->field > 0)
-				ft_putnchar(' ', handler->field);
+			{
+				if (handler->format_flags[FORMAT_ZERO])
+					ft_putnchar('0', handler->field);
+				else
+					ft_putnchar(' ', handler->field);
+			}
 		}
 
-		
 		if (handler->precision > 0)
 			ft_putnchar('0', handler->precision);
 
@@ -167,7 +182,12 @@ void		handle_option(char **format, t_fhandler *handler, va_list *ap)
 		if (handler->format_flags[FORMAT_MINUS])
 		{
 			if (handler->field > 0)
-				ft_putnchar(' ', handler->field);
+			{
+				if (handler->format_flags[FORMAT_ZERO])
+					ft_putnchar('0', handler->field);
+				else
+					ft_putnchar(' ', handler->field);
+			}
 		}
 
 		free(tmp);
@@ -247,7 +267,7 @@ int			main(void)
 	char	test[] = "(blabla)";
 	long long int		bonjour = 127;
 
-	ft_printf("bonjour ceci est %s (%50.5lld) un test.\n", test, bonjour);
-	printf("bonjour ceci est %s (%50.5lld) un test.\n", test, bonjour);
+	ft_printf("bonjour ceci est %s (%-10.5lli) un test.\n", test, bonjour);
+	printf("bonjour ceci est %s (%-10.5lli) un test.\n", test, bonjour);
 	return (0);
 }
