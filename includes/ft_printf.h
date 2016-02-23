@@ -2,6 +2,8 @@
 #ifndef FT_PRINTF_H
 # define FT_PRINTF_H
 
+# define LLINT long long int
+
 enum
 {
 	FORMAT_HASHTAG,
