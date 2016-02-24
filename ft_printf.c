@@ -49,6 +49,39 @@ char		*charjoin(const char *s1, const char c)
 	return (ret);
 }
 
+size_t		ft_wcslen(wchar_t *str)
+{
+	int		i;
+
+	i = 0;
+	while (*str)
+	{
+		i += 1 * sizeof(*str);
+		str++;
+	}
+	return (i);
+}
+
+int			btoi(char *binary)
+{
+	int		ret;
+	int		last;
+	int		factor;
+
+	last = ft_strlen(binary) - 1;
+	ret = 0;
+	if (binary[last] == '1')
+		ret = 1;
+	factor = 2;
+	while (--last >= 0)
+	{
+		if (binary[last] == '1')
+			ret += factor;
+		factor *= 2;
+	}
+	return (ret);
+}
+
 char		*itob(LLINT value, const char *base, int len)
 {
 	char	*ret;
@@ -65,6 +98,160 @@ char		*itob(LLINT value, const char *base, int len)
 	}
 	rstr(ret);
 	return (ret);
+}
+
+void		fill_and_print(char *mask, int len)
+{
+	int		print[len / 8];
+	char	part[9];
+	int		max;
+	int		i;
+
+	i = 0;
+	while (i < len)
+	{
+		if (mask[i] == 'x')
+			mask[i] = '0';
+		i++;
+	}
+	max = len / 8;
+	i = 0;
+	while (i < max)
+	{
+		ft_strncpy(part, mask + 8 * i, 8);
+		part[8] = 0;
+		print[i] = btoi(part);
+		i++;
+	}
+	i = 0;
+	while (i < max)
+	{
+		write(1, &print[i], 1);
+		i++;
+	}
+}
+
+void		unicode8(char *binary)
+{
+	char	mask[9];
+	int		len;
+	int		i;
+
+	ft_strcpy(mask, "0xxxxxxx");
+	mask[8] = 0;
+	i = ft_strlen(binary) - 1;
+	len = 7;
+	while (i >= 0)
+	{
+		if (mask[len] == 'x')
+		{
+			mask[len] = binary[i];
+			i--;
+		}
+		len--;
+	}
+	fill_and_print(mask, 8);
+}
+
+void		unicode16(char *binary)
+{
+	char	mask[17];
+	int		len;
+	int		i;
+
+	ft_strcpy(mask, "110xxxxx10xxxxxx");
+	mask[16] = 0;
+	i = ft_strlen(binary) - 1;
+	len = 15;
+	while (i >= 0)
+	{
+		if (mask[len] == 'x')
+		{
+			mask[len] = binary[i];
+			i--;
+		}
+		len--;
+	}
+	fill_and_print(mask, 16);
+}
+
+void		unicode24(char *binary)
+{
+	char	mask[25];
+	int		len;
+	int		i;
+
+	ft_strcpy(mask, "110xxxxx10xxxxxx");
+	mask[24] = 0;
+	i = ft_strlen(binary) - 1;
+	len = 23;
+	while (i >= 0)
+	{
+		if (mask[len] == 'x')
+		{
+			mask[len] = binary[i];
+			i--;
+		}
+		len--;
+	}
+	fill_and_print(mask, 24);
+}
+
+void		unicode32(char *binary)
+{
+	char	mask[33];
+	int		len;
+	int		i;
+
+	ft_strcpy(mask, "11110xxx10xxxxxx10xxxxxx10xxxxxx");
+	mask[32] = 0;
+	i = ft_strlen(binary) - 1;
+	len = 31;
+	while (i >= 0)
+	{
+		if (mask[len] == 'x')
+		{
+			mask[len] = binary[i];
+			i--;
+		}
+		len--;
+	}
+	fill_and_print(mask, 32);
+}
+
+void		unicode_magic(char *binary)
+{
+	int		len;
+
+	len = ft_strlen(binary);
+	if (len < 8)
+		unicode8(binary);
+	else if (len < 12)
+		unicode16(binary);
+	else if (len < 17)
+		unicode24(binary);
+	else
+		unicode32(binary);
+}
+
+void		ft_putwchar(wchar_t c)
+{
+	unsigned int	val;
+	char			*binary;
+
+	val = (unsigned int)c;
+	binary = itob(val, "01", 2);
+	unicode_magic(binary);
+	free(binary);
+}
+
+void		ft_putwcstr(wchar_t *str)
+{
+	while (*str)
+	{
+		ft_putwchar(*str);
+		str++;
+	}
 }
 
 void		ft_putnstr(char *str, int n)
@@ -258,9 +445,32 @@ void		handle_option(char **format, t_fhandler *handler, va_list *ap)
 	char	obase[8] = {'0', '1', '2', '3', '4', '5', '6', '7'};
 
 	if (**format == 's')
-		ft_putstr(va_arg(*ap, char *));
+	{
+		int		len;
+
+		tmp = va_arg(*ap, char *);
+		len = ft_strlen(tmp);
+		if (!handler->format_flags[FORMAT_MINUS] && handler->field - len > 0)
+			ft_putnchar(' ', handler->field - len);
+		ft_putstr(tmp);
+		if (handler->format_flags[FORMAT_MINUS] && handler->field - len > 0)
+			ft_putnchar(' ', handler->field - len);
+	}
 	else if (**format == 'S')
-		exit(-1);
+	{
+		int		len2;
+		wchar_t	*tmp2;
+
+		if (others_type_flags(handler, -1))
+			exit(-1);
+		tmp2 = va_arg(*ap, wchar_t *);
+		len2 = ft_wcslen(tmp2);
+		if (!handler->format_flags[FORMAT_MINUS] && handler->field - len2 > 0)
+			ft_putnchar(' ', handler->field - len2);
+		ft_putwcstr(tmp2);
+		if (handler->format_flags[FORMAT_MINUS] && handler->field - len2 > 0)
+			ft_putnchar(' ', handler->field - len2);
+	}
 	else if (**format == 'p')
 	{
 		ft_putstr("0x");
@@ -324,19 +534,21 @@ void		handle_option(char **format, t_fhandler *handler, va_list *ap)
 	}
 	else if (**format == 'c')
 	{
-		unsigned char c;
-
-		c = (unsigned char)va_arg(*ap, int);
-		tmp = (char *)malloc(sizeof(char) + 1);
-		tmp[0] = (char)c;
-		tmp[1] = 0;
-		put_format(handler, tmp);
+		if (!handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
+			ft_putnchar(' ', handler->field - 1);
+		ft_putchar(va_arg(*ap, int));
+		if (handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
+			ft_putnchar(' ', handler->field - 1);
 	}
 	else if (**format == 'C')
 	{
 		if (others_type_flags(handler, -1))
 			exit(-1);
-		exit (-1);	
+		if (!handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
+			ft_putnchar(' ', handler->field - 1);
+		ft_putwchar((wchar_t)va_arg(*ap, int));
+		if (handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
+			ft_putnchar(' ', handler->field - 1);
 	}
 	else if (**format == '%' && !others_flags(handler))
 		ft_putchar('%');
@@ -406,178 +618,19 @@ int			ft_printf(char *format, ...)
 	return (0);
 }
 
-int			btoi(char *binary)
-{
-	int		ret;
-	int		last;
-	int		factor;
-
-	last = ft_strlen(binary) - 1;
-	ret = 0;
-	if (binary[last] == '1')
-		ret = 1;
-	factor = 2;
-	while (--last >= 0)
-	{
-		if (binary[last] == '1')
-			ret += factor;
-		factor *= 2;
-	}
-	return (ret);
-}
-
-void		fill_and_print(char *mask, int len)
-{
-	int		print[len / 8];
-	char	part[9];
-	int		max;
-	int		i;
-
-	i = 0;
-	while (i < len)
-	{
-		if (mask[i] == 'x')
-			mask[i] = '0';
-		i++;
-	}
-	max = len / 8;
-	i = 0;
-	while (i < max)
-	{
-		ft_strncpy(part, mask + 8 * i, 8);
-		part[8] = 0;
-		print[i] = btoi(part);
-		i++;
-	}
-	i = 0;
-	while (i < max)
-	{
-		write(1, &print[i], 1);
-		i++;
-	}
-}
-
-void		unicode8(char *binary)
-{
-	char	mask[9];
-	int		len;
-	int		i;
-
-	ft_strcpy(mask, "0xxxxxxx");
-	mask[8] = 0;
-	i = ft_strlen(binary) - 1;
-	len = 7;
-	while (i >= 0)
-	{
-		if (mask[len] == 'x')
-		{
-			mask[len] = binary[i];
-			i--;
-		}
-		len--;
-	}
-	fill_and_print(mask, 8);
-}
-
-void		unicode16(char *binary)
-{
-	char	mask[17];
-	int		len;
-	int		i;
-
-	ft_strcpy(mask, "110xxxxx10xxxxxx");
-	mask[16] = 0;
-	i = ft_strlen(binary) - 1;
-	len = 15;
-	while (i >= 0)
-	{
-		if (mask[len] == 'x')
-		{
-			mask[len] = binary[i];
-			i--;
-		}
-		len--;
-	}
-	fill_and_print(mask, 16);
-}
-
-void		unicode24(char *binary)
-{
-	char	mask[25];
-	char	part[9];
-	int		print[3];
-	int		len;
-	int		i;
-
-	ft_strcpy(mask, "1110xxxx10xxxxxx10xxxxxx");
-	mask[24] = 0;
-	i = ft_strlen(binary) - 1;
-	len = 15;
-	while (i >= 0)
-	{
-		if (mask[len] == 'x')
-		{
-			mask[len] = binary[i];
-			i--;
-		}
-		len--;
-	}
-	fill_and_print(mask, 24);
-}
-
-void		unicode32(char *binary)
-{
-	char	mask[33];
-	char	part[9];
-	int		print[4];
-	int		len;
-	int		i;
-
-	ft_strcpy(mask, "11110xxx10xxxxxx10xxxxxx10xxxxxx");
-	mask[32] = 0;
-	i = ft_strlen(binary) - 1;
-	len = 15;
-	while (i >= 0)
-	{
-		if (mask[len] == 'x')
-		{
-			mask[len] = binary[i];
-			i--;
-		}
-		len--;
-	}
-	fill_and_print(mask, 32);
-}
-
-void		unicode_magic(char *binary)
-{
-	int		len;
-
-	len = ft_strlen(binary);
-	if (len < 8)
-		unicode8(binary);
-	else if (len < 12)
-		unicode16(binary);
-	else if (len < 17)
-		unicode24(binary);
-	else
-		unicode32(binary);
-}
-
 #include <locale.h>
 
 int			main(void)
 {
-	char	test[] = "(blabla)";
+	//char	test[] = "(blabla)";
 	int		bonjour = 175;
+	wchar_t	*hey = L"αααӜӜӜӜ";
 
-	wchar_t	h = 945;
+	//wchar_t	h = 945;
 
 	setlocale(LC_ALL, "");
 
-	unicode_magic(itob(h, "01", 2));
-
-	ft_printf("bonjour ceci est %s (%-5d) un test.\n", test, bonjour);
-	printf("bonjour ceci est %lc (%-5d) un test.\n", h, bonjour);
+	ft_printf("bonjour ceci est *%15S* (%-5d) un test.\n", hey, bonjour);
+	printf("bonjour ceci est *%15ls* (%-5d) un test.\n", hey, bonjour);
 	return (0);
 }
