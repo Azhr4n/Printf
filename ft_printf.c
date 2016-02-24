@@ -503,13 +503,14 @@ void		unicode16(char *binary)
 
 void		unicode24(char *binary)
 {
-	char	mask[24];
+	char	mask[25];
 	char	part[9];
 	int		print[3];
 	int		len;
 	int		i;
 
 	ft_strcpy(mask, "1110xxxx10xxxxxx10xxxxxx");
+	mask[24] = 0;
 	i = ft_strlen(binary) - 1;
 	len = 15;
 	while (i >= 0)
@@ -526,13 +527,14 @@ void		unicode24(char *binary)
 
 void		unicode32(char *binary)
 {
-	char	mask[32];
+	char	mask[33];
 	char	part[9];
 	int		print[4];
 	int		len;
 	int		i;
 
 	ft_strcpy(mask, "11110xxx10xxxxxx10xxxxxx10xxxxxx");
+	mask[32] = 0;
 	i = ft_strlen(binary) - 1;
 	len = 15;
 	while (i >= 0)
