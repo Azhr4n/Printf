@@ -12,26 +12,26 @@
 
 NAME = libftprintf.a
 PRINTF = printf.a
-LIBFT = libft/libft.a
+LIBFT = libft.a
 
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror
 
-SRCS =	ft_printf.c			
+SRCS =	ft_printf.c
 
 
 OBJS = $(SRCS:.c=.o)
 
-CFLAGS += -I ./includes -I ./libft/includes
+CFLAGS += -I.
 
 all: $(NAME)
 
 $(NAME): $(OBJS)
 	ar rc $(PRINTF) $(OBJS)
-	libtool -static -o $(PRINTF) $(LIBFT) $(NAME)
+	libtool -static -o $(NAME) $(PRINTF) $(LIBFT)
 
 clean:
-	/bin/rm -f $(OBJS)
+	/bin/rm -f $(OBJS) $(PRINTF)
 
 fclean: clean
 	/bin/rm -f $(NAME)

@@ -29,6 +29,7 @@ typedef struct	s_fhandler
 	int			field;
 	int			precision;
 	int			type_flags[NB_TYPE_FLAGS];
+	int			count;
 }				t_fhandler;
 
 #endif
