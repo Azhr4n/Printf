@@ -92,7 +92,27 @@ int			btoi(char *binary)
 	return (ret);
 }
 
-char		*itob(LLINT value, const char *base, int len)
+char		*itob(intmax_t value, const char *base, int len)
+{
+	char	*ret;
+	char	*tmp;
+
+	tmp = (char *)malloc(sizeof(char));
+	tmp[0] = 0;
+	if (!value)
+		ret = charjoin(tmp, '0');
+	while (value > 0)
+	{
+		ret = charjoin(tmp, base[value % len]);
+		free(tmp);
+		tmp = ret;
+		value /= len;
+	}
+	rstr(ret);
+	return (ret);
+}
+
+char		*uitob(uintmax_t value, const char *base, unsigned int len)
 {
 	char	*ret;
 	char	*tmp;
@@ -283,7 +303,7 @@ void		ft_putnchar(char c, int nb)
 	}
 }
 
-int			others_flags(t_fhandler *handler)
+int			others_flags(t_handler *handler)
 {
 	int		i;
 
@@ -304,7 +324,7 @@ int			others_flags(t_fhandler *handler)
 	return (0);
 }
 
-int			others_type_flags(t_fhandler *handler, int flag)
+int			others_type_flags(t_handler *handler, int flag)
 {
 	int		i;
 
@@ -318,7 +338,7 @@ int			others_type_flags(t_fhandler *handler, int flag)
 	return (0);
 }
 
-void		handle_format_flags(char **format, t_fhandler *handler)
+void		handle_format_flags(char **format, t_handler *handler)
 {
 	while (**format == '#' || **format == '0' || **format == '-'
 		|| **format == '+' || **format == ' ')
@@ -337,13 +357,11 @@ void		handle_format_flags(char **format, t_fhandler *handler)
 		else if (**format == ' ' && !handler->format_flags[FORMAT_SPACE]
 			&& !handler->format_flags[FORMAT_PLUS])
 			handler->format_flags[FORMAT_SPACE] += 1;
-		//else
-		//	exit(-1);
 		(*format)++;
 	}
 }
 
-void		handle_type_flags(char **format, t_fhandler *handler)
+void		handle_type_flags(char **format, t_handler *handler)
 {
 	int		inc;
 
@@ -362,14 +380,12 @@ void		handle_type_flags(char **format, t_fhandler *handler)
 			handler->type_flags[TYPE_J] += 1;
 		else if (**format == 'z' && !inc)
 			handler->type_flags[TYPE_Z] += 1;
-		//else
-		//	exit(-1);
 		(*format)++;
 		inc++;
 	}
 }
 
-void		handle_field(char **format, t_fhandler *handler)
+void		handle_field(char **format, t_handler *handler)
 {
 	if (**format == '0')
 		exit(-1);
@@ -378,12 +394,15 @@ void		handle_field(char **format, t_fhandler *handler)
 		(*format)++;
 }
 
-void		handle_precision(char **format, t_fhandler *handler)
+void		handle_precision(char **format, t_handler *handler)
 {
 	int		nb;
 
 	if (**format == '.')
+	{
+		handler->ppoint = 1;
 		(*format)++;
+	}
 	nb = ft_atoi(*format);
 	if (nb < 0)
 		nb = 0;
@@ -392,246 +411,71 @@ void		handle_precision(char **format, t_fhandler *handler)
 	handler->precision = nb;
 }
 
-void		get_signed_type(t_fhandler *handler, va_list *ap, char **tmp)
+void		handle_conversion(char **format, t_handler *handler, va_list *ap)
 {
-	if (handler->type_flags[TYPE_L] == 1)
-		*tmp = ft_ltoa(va_arg(*ap, long int));
-	else if (handler->type_flags[TYPE_L] > 1)
-		*tmp = ft_lltoa(va_arg(*ap, LLINT));
-	else
-		*tmp = ft_itoa(va_arg(*ap, int));
-}
-
-void		get_unsigned_type(t_fhandler *handler, va_list *ap, char **tmp)
-{
-	if (handler->type_flags[TYPE_L] == 1)
-		*tmp = ft_ltoa(va_arg(*ap, long unsigned int));
-	else if (handler->type_flags[TYPE_L] > 1)
-		*tmp = ft_lltoa(va_arg(*ap, long long unsigned int));
-	else
-		*tmp = ft_itoa(va_arg(*ap, unsigned int));
-}
-
-void		put_format(t_fhandler *handler, char *tmp)
-{
-	if (*tmp != '-' && handler->format_flags[FORMAT_PLUS])
-	{
-		handler->field -= 1;
-		ft_putchar('+');
-		handler->count++;
-	}
-	else if (*tmp != '-' && handler->format_flags[FORMAT_SPACE])
-	{
-		handler->field -= 1;
-		ft_putchar(' ');
-		handler->count++;
-	}
-
-	handler->precision -= ft_strlen(tmp);
-	if (handler->precision > 0)
-		handler->field -= handler->precision + ft_strlen(tmp);
-	else
-		handler->field -= ft_strlen(tmp);
-	if (!handler->format_flags[FORMAT_MINUS])
-	{
-		if (handler->field > 0)
-		{
-			if (handler->format_flags[FORMAT_ZERO])
-				ft_putnchar('0', handler->field);
-			else
-				ft_putnchar(' ', handler->field);
-			handler->count += handler->field;
-		}
-	}
-
-	if (handler->precision > 0)
-		ft_putnchar('0', handler->precision);
-
-	ft_putstr(tmp);
-	handler->count += ft_strlen(tmp);
-
-	if (handler->format_flags[FORMAT_MINUS])
-	{
-		if (handler->field > 0)
-		{
-			if (handler->format_flags[FORMAT_ZERO])
-				ft_putnchar('0', handler->field);
-			else
-				ft_putnchar(' ', handler->field);
-			handler->count += handler->field;
-		}
-	}
-	free(tmp);
-}
-
-void		handle_option(char **format, t_fhandler *handler, va_list *ap)
-{
-	char	*tmp;
-	char	hbase[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A',
-		'B', 'C', 'D', 'E', 'F'};
-	char	obase[8] = {'0', '1', '2', '3', '4', '5', '6', '7'};
+	(void)handler;
+	(void)ap;
 
 	if (**format == 's')
 	{
-		int		len;
 
-		tmp = va_arg(*ap, char *);
-		len = ft_strlen(tmp);
-		handler->count += len;
-		handler->field -= len;
-		if (!handler->format_flags[FORMAT_MINUS] && handler->field > 0)
-		{
-			handler->count += handler->field;
-			ft_putnchar(' ', handler->field);
-		}
-		ft_putstr(tmp);
-		if (handler->format_flags[FORMAT_MINUS] && handler->field > 0)
-		{
-			ft_putnchar(' ', handler->field);
-			handler->count += handler->field;
-		}
 	}
 	else if (**format == 'S')
 	{
-		int		len2;
-		wchar_t	*tmp2;
 
-		if (others_type_flags(handler, -1))
-			exit(-1);
-		tmp2 = va_arg(*ap, wchar_t *);
-		len2 = ft_wcslen(tmp2);
-		if (!handler->format_flags[FORMAT_MINUS] && handler->field - len2 > 0)
-			ft_putnchar(' ', handler->field - len2);
-		ft_putwcstr(tmp2);
-		if (handler->format_flags[FORMAT_MINUS] && handler->field - len2 > 0)
-			ft_putnchar(' ', handler->field - len2);
 	}
 	else if (**format == 'p')
 	{
-		ft_putstr("0x");
-		tmp = itob((int)va_arg(*ap, int *), hbase, 16);
-		ft_putstr(tmp);
-		free(tmp);
+
 	}
 	else if (**format == 'd' || **format == 'i')
 	{
-		get_signed_type(handler, ap, &tmp);
-		put_format(handler, tmp);
-	}
-	else if (** format == 'D')
-	{
-		if (others_type_flags(handler, -1))
-			exit(-1);
 
-		tmp = ft_ltoa(va_arg(*ap, long int));
-		put_format(handler, tmp);
+	}
+	else if (**format == 'D')
+	{
+
 	}
 	else if (**format == 'o')
 	{
-		tmp = itob((LLINT)va_arg(*ap, unsigned int), obase, 8);
-		put_format(handler, tmp);
+
 	}		
 	else if (**format == 'O')
 	{
-		if (others_type_flags(handler, -1))
-			exit(-1);
-		tmp = itob((LLINT)va_arg(*ap, long unsigned int), obase, 8);
-		put_format(handler, tmp);
+
 	}
 	else if (**format == 'u')
 	{
-		get_unsigned_type(handler, ap, &tmp);
-		//tmp = ft_lltoa((LLINT)va_arg(*ap, unsigned int));
-		put_format(handler, tmp);
+
 	}
 	else if (**format == 'U')
 	{
-		if (others_type_flags(handler, -1))
-			exit(-1);
-		tmp = ft_lltoa((LLINT)va_arg(*ap, long unsigned int));
-		put_format(handler, tmp);
+
 	}
 	else if (**format == 'x')
 	{
-		uintmax_t xval;
 
-		if (handler->type_flags[TYPE_L] == 1)
-			xval = va_arg(*ap, long unsigned int);
-		else if (handler->type_flags[TYPE_L] > 1)
-			xval = va_arg(*ap, long long unsigned int);
-		else if (handler->type_flags[TYPE_J])
-			xval = va_arg(*ap, uintmax_t);
-		else
-			xval = va_arg(*ap, unsigned int);
-
-		tmp = itob(xval, "0123456789abcdef", 16);
-		if (handler->format_flags[FORMAT_HASHTAG] && tmp[0] != '0')
-		{
-			ft_putstr("0x");
-			handler->count += 2;
-		}
-		put_format(handler, tmp);
 	}
 	else if (**format == 'X')
 	{
-		uintmax_t Xval;
 
-		if (handler->type_flags[TYPE_L] == 1)
-			Xval = va_arg(*ap, long unsigned int);
-		else if (handler->type_flags[TYPE_L] > 1)
-			Xval = va_arg(*ap, long long unsigned int);
-		else if (handler->type_flags[TYPE_J])
-			Xval = va_arg(*ap, uintmax_t);
-		else
-			Xval = va_arg(*ap, unsigned int);
-
-		tmp = itob(Xval, "0123456789ABCDEF", 16);
-		if (handler->format_flags[FORMAT_HASHTAG] && tmp[0] != '0')
-		{
-			ft_putstr("0X");
-			handler->count += 2;
-		}
-		put_format(handler, tmp);
 	}
 	else if (**format == 'c')
 	{
-		if (!handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
-			ft_putnchar(' ', handler->field - 1);
-		ft_putchar(va_arg(*ap, int));
-		if (handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
-			ft_putnchar(' ', handler->field - 1);
+
 	}
 	else if (**format == 'C')
 	{
-		if (others_type_flags(handler, -1))
-			exit(-1);
-		if (!handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
-			ft_putnchar(' ', handler->field - 1);
-		ft_putwchar((wchar_t)va_arg(*ap, int));
-		if (handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
-			ft_putnchar(' ', handler->field - 1);
+
 	}
 	else if (**format == '%')
 	{
-		if (!handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
-		{
-			ft_putnchar(' ', handler->field - 1);
-			handler->count += handler->field - 1;
-		}
-		ft_putchar('%');
-		if (handler->format_flags[FORMAT_MINUS] && handler->field - 1 > 0)
-		{
-			ft_putnchar(' ', handler->field - 1);
-			handler->count += handler->field - 1;
-		}
-		handler->count++;
+
 	}
-	else
-		exit(-1);
 	(*format)++;
 }
 
-void		set_handler(t_fhandler *handler)
+void		set_handler(t_handler *handler)
 {
 	int		i;
 
@@ -649,9 +493,10 @@ void		set_handler(t_fhandler *handler)
 	}
 	handler->field = 0;
 	handler->precision = 0;
+	handler->ppoint = 0;
 }
 
-void		print_flags(t_fhandler *handler)
+void		print_flags(t_handler *handler)
 {
 	int		i;
 
@@ -673,7 +518,7 @@ int			ft_printf(char *format, ...)
 {
 	va_list		ap;
 	char		*ptr;
-	t_fhandler	handler;
+	t_handler	handler;
 
 	va_start(ap, format);
 	handler.count = 0;
@@ -687,7 +532,7 @@ int			ft_printf(char *format, ...)
 		handle_field(&format, &handler);
 		handle_precision(&format, &handler);
 		handle_type_flags(&format, &handler);
-		handle_option(&format, &handler, &ap);
+		handle_conversion(&format, &handler, &ap);
 	}
 	va_end(ap);
 	handler.count += ft_strlen(format);

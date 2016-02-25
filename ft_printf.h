@@ -3,6 +3,7 @@
 # define FT_PRINTF_H
 
 # define LLINT long long int
+# define LLUINT long long unsigned int
 
 enum
 {
@@ -23,13 +24,14 @@ enum
 	NB_TYPE_FLAGS
 };
 
-typedef struct	s_fhandler
+typedef struct	s_handler
 {
 	int			format_flags[NB_FORMAT_FLAGS];
+	int			type_flags[NB_TYPE_FLAGS];
 	int			field;
 	int			precision;
-	int			type_flags[NB_TYPE_FLAGS];
+	int			ppoint;
 	int			count;
-}				t_fhandler;
+}				t_handler;
 
 #endif
