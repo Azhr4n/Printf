@@ -576,6 +576,44 @@ void		print_in_order(t_handler *handler, char *format, char *str)
 	}
 }
 
+intmax_t	get_signed_value(t_handler *handler, va_list *ap)
+{
+	intmax_t	ret;
+
+	if (handler->type_flags[TYPE_H] == 1)
+		ret = (short int)va_arg(*ap, short int);
+	else if (handler->type_flags[TYPE_H] == 2)
+		ret = (short short int)va_arg(*ap, short short int);
+	else if (handler->type_flags[TYPE_L] == 1)
+		ret = (long int)va_arg(*ap, long int);
+	else if (handler->type_flags[TYPE_L] == 2)
+		ret = (long long int)va_arg(*ap, long long int);
+	else if (handler->type_flags[TYPE_Z] == 1)
+		ret = (ssize_t)va_arg(*ap, ssize_t);
+	else if (handler->type_flags[TYPE_J] == 1)
+		ret = va_arg(*ap, intmax_t);
+	return (ret);
+}
+
+uintmax_t	get_unsigned_value(t_handler *handler, va_list *ap)
+{
+	uintmax_t	ret;
+
+	if (handler->type_flags[TYPE_H] == 1)
+		ret = (short unsigned int)va_arg(*ap, short unsigned int);
+	else if (handler->type_flags[TYPE_H] == 2)
+		ret = (short short unsigned int)va_arg(*ap, short short unsigned int);
+	else if (handler->type_flags[TYPE_L] == 1)
+		ret = (long unsigned int)va_arg(*ap, long unsigned int);
+	else if (handler->type_flags[TYPE_L] == 2)
+		ret = (long long unsigned int)va_arg(*ap, long long unsigned int);
+	else if (handler->type_flags[TYPE_Z] == 1)
+		ret = (size_t)va_arg(*ap, size_t);
+	else if (handler->type_flags[TYPE_J] == 1)
+		ret = va_arg(*ap, uintmax_t);
+	return (ret);
+}
+
 void		handle_conversion(char **format, t_handler *handler, va_list *ap)
 {
 	(void)handler;
