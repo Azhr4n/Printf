@@ -303,27 +303,6 @@ void		ft_putnchar(char c, int nb)
 	}
 }
 
-int			others_flags(t_handler *handler)
-{
-	int		i;
-
-	i = 0;
-	while (i < NB_FORMAT_FLAGS)
-	{
-		if (handler->format_flags[i])
-			return (1);
-		i++;
-	}
-	i = 0;
-	while (i < NB_TYPE_FLAGS)
-	{
-		if (handler->type_flags[i])
-			return (1);
-		i++;
-	}
-	return (0);
-}
-
 int			others_type_flags(t_handler *handler, int flag)
 {
 	int		i;
@@ -343,20 +322,16 @@ void		handle_format_flags(char **format, t_handler *handler)
 	while (**format == '#' || **format == '0' || **format == '-'
 		|| **format == '+' || **format == ' ')
 	{
-		if (**format == '#' && !handler->format_flags[FORMAT_HASHTAG])
-			handler->format_flags[FORMAT_HASHTAG] += 1;
-		else if (**format == '0' && !handler->format_flags[FORMAT_ZERO] &&
-			!handler->format_flags[FORMAT_MINUS])
-			handler->format_flags[FORMAT_ZERO] += 1;
-		else if (**format == '-' && !handler->format_flags[FORMAT_MINUS] &&
-			!handler->format_flags[FORMAT_ZERO])
-			handler->format_flags[FORMAT_MINUS] += 1;
-		else if (**format == '+' && !handler->format_flags[FORMAT_PLUS]
-			&& !handler->format_flags[FORMAT_SPACE])
-			handler->format_flags[FORMAT_PLUS] += 1;
-		else if (**format == ' ' && !handler->format_flags[FORMAT_SPACE]
-			&& !handler->format_flags[FORMAT_PLUS])
-			handler->format_flags[FORMAT_SPACE] += 1;
+		if (**format == '#')
+			handler->format_flags[FORMAT_HASHTAG] = 1;
+		else if (**format == '0')
+			handler->format_flags[FORMAT_ZERO] = 1;
+		else if (**format == '-')
+			handler->format_flags[FORMAT_MINUS] = 1;
+		else if (**format == '+')
+			handler->format_flags[FORMAT_PLUS] = 1;
+		else if (**format == ' ' && !handler->format_flags[FORMAT_SPACE])
+			handler->format_flags[FORMAT_SPACE] = 1;
 		(*format)++;
 	}
 }
@@ -409,6 +384,196 @@ void		handle_precision(char **format, t_handler *handler)
 	while (**format == '-' || (**format >= '0' && **format <= '9'))
 		(*format)++;
 	handler->precision = nb;
+}
+
+void		hashtag(t_handler *handler, char conv)
+{
+	if (conv == 'x')
+	{
+		ft_putstr("0x");
+		handler->count += 2;
+	}
+	else if (conv == 'X')
+	{
+		ft_putstr("0X");
+		handler->count += 2;
+	}
+	else if (conv == 'o')
+	{
+		ft_putchar('0');
+		handler->count++;
+	}
+	handler->order_flag[O_HASHTAG] = 0;
+}
+
+void		zero(t_handler *handler)
+{
+	ft_putnchar('0', handler->field);
+	handler->count += handler->field;
+	handler->order_flag[O_ZERO] = 0;
+}
+
+void		space(t_handler *handler, int n, int flag)
+{
+	if (!flag || (flag && handler->field > 0))
+	{
+		ft_putnchar(' ', n);
+		handler->count += n;
+	}
+	if (!flag)
+		handler->order_flag[O_SPACE] = 0;
+	else
+		handler->order_flag[O_FIELD] = 0;
+}
+
+void		plus(t_handler *handler, char first_c)
+{
+	if (first_c != '-')
+	{
+		ft_putchar('+');
+		handler->count++;
+	}
+	handler->order_flag[O_PLUS] = 0;
+}
+
+void		precision(t_handler *handler, char conv)
+{
+	if ((conv == 'd' || conv == 'D' || conv == 'i' 
+		|| conv == 'o' || conv == 'O' || conv == 'u'
+		|| conv == 'U' || conv == 'x' || conv == 'X')
+		&& handler->precision > 0)
+	{
+		ft_putnchar('0', handler->precision);
+		handler->count += handler->precision;
+	}
+	handler->order_flag[O_PRECISION] = 0;
+}
+
+void		print(t_handler *handler, char *str, char conv)
+{
+	if ((conv == 's' || conv == 'S') && handler->ppoint)
+	{
+		ft_putnstr(str, handler->precision);
+		handler->count += handler->precision;
+	}
+	else
+	{
+		ft_putstr(str);
+		handler->count += handler->str_len;
+	}
+	handler->order_flag[O_STRING] = 0;
+}
+
+int			get_next_index(int *tab, int len)
+{
+	int			i;
+	int			index;
+	static int	next = 0;
+
+	next++;
+	index = -1;
+	i = 0;
+	while (i < len)
+	{
+		if (tab[i] <= next && tab[i] > 0)
+		{
+			index = i;
+			next = tab[i];
+		}
+		i++;
+	}
+	return (index);
+}
+
+void		get_field(t_handler *handler, char conv, char first_c)
+{
+	if ((conv == 'x' || conv == 'X') && handler->order_flag[O_HASHTAG])
+		handler->field -= 2;
+	else if ((conv == 'o' || conv == 'O') && handler->order_flag[O_HASHTAG])
+		handler->field--;
+	if (handler->order_flag[O_PLUS])
+		handler->field--;
+	if (handler->order_flag[O_SPACE])
+		handler->field--;
+	if ((conv == 'd' || conv == 'D' || conv == 'i' || conv == 'o' || conv == 'O' 
+		|| conv == 'u' || conv == 'U' || conv == 'x' || conv == 'X')
+		&& handler->ppoint && handler->precision > 0)
+	{
+		if (handler->str_len < handler->precision)
+			handler->field -= handler->precision - handler->str_len;
+		else
+			handler->field -= handler->str_len;
+		handler->precision -= handler->str_len;
+	}
+	if ((conv == 's' || conv == 'S') && handler->ppoint 
+		&& handler->precision >= 0)
+		handler->field -= handler->precision;
+	else if ((handler->ppoint && !handler->precision <= 0) || !handler->ppoint)
+		handler->field -= handler->str_len;
+}
+
+void		upgrade_priority(t_handler *handler, int flag)
+{
+	int		i;
+
+	i = 0;
+	while (i < NB_O_FLAGS)
+	{
+		if (handler->order_flag[i] != 0 || i == flag)
+			handler->order_flag[i]++;
+		i++;
+	}
+}
+
+void		set_priority(t_handler *handler, char conv, char first_c)
+{
+	if (handler->field > 0 && handler->format_flags[FORMAT_MINUS])
+		upgrade_priority(handler, O_FIELD);
+	if ((conv != 's' || conv != 'S') && first_c == '0' && handler->ppoint
+		&& handler->precision <= 0)
+		handler->order_flag[O_STRING] = 0;
+	else
+		handler->order_flag[O_STRING]++;
+	if (handler->ppoint && handler->precision > 0)
+		upgrade_priority(handler, O_PRECISION);
+	if (handler->format_flags[FORMAT_PLUS] && (conv == 'd' || conv == 'D') 
+		&& first_c != '-')
+		upgrade_priority(handler, O_PLUS);
+	if (handler->format_flags[FORMAT_SPACE] && !handler->order_flag[O_PLUS] 
+		&& (conv == 'd' || conv == 'D'))
+		upgrade_priority(handler, O_SPACE);
+	if (handler->field > 0 && !handler->format_flags[FORMAT_MINUS])
+		upgrade_priority(handler, O_FIELD);
+	if (handler->format_flags[FORMAT_ZERO] && !handler->ppoint 
+		&& !handler->format_flags[FORMAT_MINUS])
+		upgrade_priority(handler, O_ZERO);
+	if (handler->format_flags[FORMAT_HASHTAG] && (conv == 'x' || conv == 'X'
+		|| conv == 'o' || conv == 'O') && first_c != '0'
+		&& handler->ppoint && handler->precision > 0)
+		upgrade_priority(handler, O_HASHTAG);
+}
+
+void		print_in_order(t_handler *handler, char *format, char *str)
+{
+	int		val;
+
+	while ((val = get_next_index(handler->order_flag, NB_O_FLAGS)) != -1)
+	{
+		if (val == O_HASHTAG)
+			hashtag(handler, *format);
+		else if (val == O_ZERO)
+			zero(handler);
+		else if (val == O_SPACE)
+			space(handler, 1, 0);
+		else if (val == O_PLUS)
+			plus(handler, '+');
+		else if (val == O_PRECISION)
+			precision(handler, *format);
+		else if (val == O_FIELD)
+			space(handler, handler->field, 1);
+		else if (val == O_STRING)
+			print(handler, str, *format);
+	}
 }
 
 void		handle_conversion(char **format, t_handler *handler, va_list *ap)
@@ -475,7 +640,7 @@ void		handle_conversion(char **format, t_handler *handler, va_list *ap)
 	(*format)++;
 }
 
-void		set_handler(t_handler *handler)
+void		reset_handler(t_handler *handler)
 {
 	int		i;
 
@@ -491,27 +656,15 @@ void		set_handler(t_handler *handler)
 		handler->type_flags[i] = 0;
 		i++;
 	}
+	i = 0;
+	while (i < NB_O_FLAGS)
+	{
+		handler->order_flag[i] = 0;
+		i++;
+	}
 	handler->field = 0;
 	handler->precision = 0;
 	handler->ppoint = 0;
-}
-
-void		print_flags(t_handler *handler)
-{
-	int		i;
-
-	i = 0;
-	while (i < NB_FORMAT_FLAGS)
-	{
-		printf("Format flag[%d] : %d\n", i, handler->format_flags[i]);
-		i++;
-	}
-	i = 0;
-	while (i < NB_TYPE_FLAGS)
-	{
-		printf("Type flag[%d] : %d\n", i, handler->type_flags[i]);
-		i++;
-	}
 }
 
 int			ft_printf(char *format, ...)
@@ -527,7 +680,7 @@ int			ft_printf(char *format, ...)
 		handler.count += ptr - format;
 		ft_putnstr(format, ptr - format);
 		format = ptr + 1;
-		set_handler(&handler);
+		reset_handler(&handler);
 		handle_format_flags(&format, &handler);
 		handle_field(&format, &handler);
 		handle_precision(&format, &handler);
@@ -540,10 +693,45 @@ int			ft_printf(char *format, ...)
 	return (handler.count);
 }
 
-//#include <locale.h>
-//
-//int			main(void)
-//{
-//	ft_printf("%x\n", -42);
-//	return (0);
-//}
+#include <locale.h>
+
+int			main(void)
+{
+	//unsigned int	val = 255;
+	int				val = 1;
+	//char			*val = "";
+
+	t_handler		hand;
+
+	reset_handler(&hand);
+
+	char	*str = "#+.5x";
+
+	handle_format_flags(&str, &hand);
+	handle_field(&str, &hand);
+	handle_precision(&str, &hand);
+	handle_type_flags(&str, &hand);
+
+	hand.str_len = 1;
+	hand.count = 0;
+
+	set_priority(&hand, *str, '1');
+	get_field(&hand, *str, '1');
+
+	int i = 0;
+	while (i < NB_O_FLAGS)
+	{
+		printf("val flag : %d\n", hand.order_flag[i]);
+		i++;
+	}
+
+	ft_putstr("(");
+	print_in_order(&hand, str, "1");
+	ft_putstr(")\n");
+
+		printf("count : %d\n", hand.count);
+
+	printf("(%#+.5x)\n", val);
+
+	return (0);
+}
