@@ -25,6 +25,8 @@ int			ft_isprint(int c);
 char		*ft_itoa(int n);
 char		*ft_ltoa(long int n);
 char		*ft_lltoa(long long int n);
+char		*ft_uimtoa(uintmax_t n);
+char		*ft_imtoa(intmax_t n);
 void		*ft_memalloc(size_t size);
 void		*ft_memccpy(void *dst, const void *src, int c, size_t n);
 void		*ft_memchr(const void *s, int c, size_t n);
