@@ -409,7 +409,8 @@ void		hashtag(t_handler *handler, char conv)
 void		zero(t_handler *handler)
 {
 	ft_putnchar('0', handler->field);
-	handler->count += handler->field;
+	if (handler->field > 0)
+		handler->count += handler->field;
 	handler->order_flag[O_ZERO] = 0;
 }
 
@@ -429,10 +430,10 @@ void		space(t_handler *handler, int n, int flag)
 void		plus(t_handler *handler, char first_c)
 {
 	if (first_c != '-')
-	{
 		ft_putchar('+');
-		handler->count++;
-	}
+	else
+		ft_putchar('-');
+	handler->count++;
 	handler->order_flag[O_PLUS] = 0;
 }
 
@@ -451,6 +452,8 @@ void		precision(t_handler *handler, char conv)
 
 void		print(t_handler *handler, char *str, char conv)
 {
+	if (*str == '-' && (conv == 'd' || conv == 'D') && (handler->format_flags[FORMAT_PLUS]))
+		str++;
 	if (*str != 0)
 	{
 		if ((conv == 's' || conv == 'S') && handler->ppoint)
@@ -462,7 +465,12 @@ void		print(t_handler *handler, char *str, char conv)
 		{
 			ft_putstr(str);
 			handler->count += handler->str_len;
-		}	
+		}
+	}
+	else if (conv == 'c')
+	{
+		ft_putchar(*str);
+		handler->count++;
 	}
 	handler->order_flag[O_STRING] = 0;
 }
@@ -490,8 +498,6 @@ int			get_next_index(int *tab, int len)
 
 void		get_field(t_handler *handler, char conv)
 {
-	
-
 	if ((conv == 'x' || conv == 'X') && handler->order_flag[O_HASHTAG])
 		handler->field -= 2;
 	else if ((conv == 'o' || conv == 'O') && handler->order_flag[O_HASHTAG])
@@ -504,16 +510,19 @@ void		get_field(t_handler *handler, char conv)
 		|| conv == 'u' || conv == 'U' || conv == 'x' || conv == 'X')
 		&& handler->ppoint && handler->precision > 0)
 	{
+		// printf("len : %d\n", handler->str_len);
+		// printf("preci : %d\n", handler->precision);
+		// printf("field : %d\n", handler->field);
 		if (handler->str_len < handler->precision)
-			handler->field -= handler->precision + (handler->precision - handler->str_len);
+			handler->field -= handler->precision;
 		else
 			handler->field -= handler->str_len;
 		handler->precision -= handler->str_len;
 	}
-	if ((conv == 's' || conv == 'S') && handler->ppoint 
+	else if ((conv == 's' || conv == 'S') && handler->ppoint 
 		&& handler->precision >= 0 && handler->str_len > 0)
 		handler->field -= handler->precision;
-	else if ((handler->ppoint && handler->precision > 0) || !handler->ppoint)
+	else if (!handler->ppoint)
 		handler->field -= handler->str_len;
 }
 
@@ -534,27 +543,33 @@ void		set_priority(t_handler *handler, char conv, char first_c)
 {
 	if (handler->field > 0 && handler->format_flags[FORMAT_MINUS])
 		upgrade_priority(handler, O_FIELD);
+
 	if ((conv != 's' || conv != 'S') && first_c == '0' && handler->ppoint
 		&& handler->precision <= 0)
 		handler->order_flag[O_STRING] = 0;
 	else
 		handler->order_flag[O_STRING]++;
+
 	if (handler->ppoint && handler->precision > 0)
 		upgrade_priority(handler, O_PRECISION);
-	if (handler->format_flags[FORMAT_PLUS] && (conv == 'd' || conv == 'D') 
-		&& first_c != '-')
-		upgrade_priority(handler, O_PLUS);
-	if (handler->format_flags[FORMAT_SPACE] && !handler->order_flag[O_PLUS] 
-		&& (conv == 'd' || conv == 'D'))
-		upgrade_priority(handler, O_SPACE);
+
 	if (handler->format_flags[FORMAT_ZERO] && !handler->ppoint 
 		&& !handler->format_flags[FORMAT_MINUS])
 		upgrade_priority(handler, O_ZERO);
-	if (handler->format_flags[FORMAT_HASHTAG] && (conv == 'x' || conv == 'X'
-		|| conv == 'o' || conv == 'O') && first_c != '0')
+
+	if (handler->format_flags[FORMAT_PLUS] && (conv == 'd' || conv == 'D'))
+		upgrade_priority(handler, O_PLUS);
+
+	if (handler->format_flags[FORMAT_SPACE] && !handler->format_flags[FORMAT_PLUS] 
+		&& (conv == 'd' || conv == 'D') && first_c != '-')
+		upgrade_priority(handler, O_SPACE);
+
+	if (handler->format_flags[FORMAT_HASHTAG] && (((conv == 'x' || conv == 'X') 
+		&& first_c != '0') || conv == 'o' || conv == 'O'))
 		upgrade_priority(handler, O_HASHTAG);
+
 	if (handler->field > 0 && !handler->format_flags[FORMAT_MINUS] 
-		&& !handler->format_flags[FORMAT_ZERO])
+		&& (!handler->format_flags[FORMAT_ZERO])
 		upgrade_priority(handler, O_FIELD);
 }
 
@@ -571,7 +586,7 @@ void		print_in_order(t_handler *handler, char *conv, char *str)
 		else if (val == O_SPACE)
 			space(handler, 1, 0);
 		else if (val == O_PLUS)
-			plus(handler, '+');
+			plus(handler, *str);
 		else if (val == O_PRECISION)
 			precision(handler, *conv);
 		else if (val == O_FIELD)
@@ -623,16 +638,11 @@ uintmax_t	get_unsigned_value(t_handler *handler, va_list *ap)
 	return (ret);
 }
 
-void		print_order(t_handler *handler)
+void		last_step(t_handler *handler, char *conv, char *str)
 {
-	int			i;
-
-	i = 0;
-	while (i < NB_O_FLAGS)
-	{
-		printf("flag[%d] : %d\n", i, handler->order_flag[i]);
-		i++;
-	}
+	set_priority(handler, *conv, *str);
+	get_field(handler, *conv);
+	print_in_order(handler, conv, str);
 }
 
 void		percent(t_handler *handler, char *conv)
@@ -640,17 +650,8 @@ void		percent(t_handler *handler, char *conv)
 	if (*conv == '%')
 	{
 		handler->str_len = 1;
-		set_priority(handler, *conv, '%');
-		get_field(handler, *conv);
-		print_in_order(handler, conv, "%");
+		last_step(handler, "%", "%");
 	}
-}
-
-void		last_step(t_handler *handler, char *conv, char *str)
-{
-	set_priority(handler, *conv, *str);
-	get_field(handler, *conv);
-	print_in_order(handler, conv, str);
 }
 
 void		x_minus(t_handler *handler, char *conv, va_list *ap)
@@ -697,12 +698,58 @@ void		s_minus(t_handler *handler, char *conv, va_list *ap)
 	}
 }
 
+void		c_minus(t_handler *handler, char *conv, va_list *ap)
+{
+	char	str[2];
+
+	if (*conv == 'c')
+	{
+		str[0] = va_arg(*ap, int);
+		handler->str_len = 1;
+		last_step(handler, conv, str);
+	}
+}
+
+void		o_minus(t_handler *handler, char *conv, va_list *ap)
+{
+	char	*str;
+
+	if (*conv == 'o')
+	{
+		str = uitob(get_unsigned_value(handler, ap),
+			"01234567", 8);
+		handler->str_len = ft_strlen(str);
+		last_step(handler, conv, str);
+	}
+}
+
+void		d_minus(t_handler *handler, char *conv, va_list *ap)
+{
+	char 	*str;
+
+	if (*conv == 'd')
+	{
+		str = ft_imtoa(get_signed_value(handler, ap));
+		handler->str_len = ft_strlen(str);
+		if (*str == '-')
+		{
+			handler->format_flags[FORMAT_PLUS] = 1;
+			handler->str_len--;
+		}
+		last_step(handler, conv, str);
+
+	}
+}
+
 void		handle_conversion(char **format, t_handler *handler, va_list *ap)
 {
 	percent(handler, *format);
 	x_minus(handler, *format, ap);
 	x_majus(handler, *format, ap);
 	s_minus(handler, *format, ap);
+	c_minus(handler, *format, ap);
+	o_minus(handler, *format, ap);
+	d_minus(handler, *format, ap);
 	(*format)++;
 }
 
